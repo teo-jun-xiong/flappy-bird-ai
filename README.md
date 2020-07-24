@@ -3,6 +3,8 @@
 ## Preface
 This mini-project serves as a fun introduction to artificial intelligence (AI) for me, and mainly uses Python and its NEAT module. Using AI to evolve fLoPpY bUrT to FLAPPY BIRD!
 
+<img style="float: right;" src="flappy.gif">
+
 ## Fitness Function
 
 Birds (and the neurons) gain fitness if they:
