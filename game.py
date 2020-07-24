@@ -12,6 +12,7 @@ GENERATION = 0
 
 BIRD_IMGS = [pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bird1.png"))), pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bird2.png"))), pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bird1.png")))]
 PIPE_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "pipe.png")))
+worms_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "worm.png")))
 BASE_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "base.png")))
 BG_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs", "bg.png")))
  
@@ -82,7 +83,7 @@ class Bird:
 
         # rotates the image around its center
         rotated_img = pygame.transform.rotate(self.img, self.tilt)
-        new_rectangle = rotated_img.get_rect(center = self.img.get_rect(topleft = (self.x, self.y)).center)
+        new_rectangle = rotated_img.get_rect(center = self.img.get_rect(topleft = (self.x, int(self.y))).center)
         win.blit(rotated_img, new_rectangle.topleft)
     
     # used for identifying collisions
@@ -134,7 +135,34 @@ class Pipe:
             return True
         
         return False
- 
+
+class Worm:
+    VELOCITY = 5
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.worms_IMG = worms_IMG
+
+    def move(self):
+        self.x -= self.VELOCITY
+
+    def draw(self, win):
+        win.blit(self.worms_IMG, (self.x, self.y))
+
+    def add_bonus(self, bird):
+        bird_mask = bird.get_mask()
+        worms_mask = pygame.mask.from_surface(self.worms_IMG)
+
+        offset = (self.x - bird.x, self.y - round(bird.y))
+        point = bird_mask.overlap(worms_mask, offset)
+
+        if point:   # not NaN
+            print("cOLLIDEd")
+            return True
+        
+        return False
+
 class Base:
     VELOCITY = 5
     WIDTH = BASE_IMG.get_width()
@@ -173,12 +201,7 @@ def run(config_path):
     p.add_reporter(stats)
     p.run(main, 50)
 
-if __name__ == "__main__":
-    local_dir = os.path.dirname(__file__)
-    config_path = os.path.join(local_dir + "\config-feedforward.txt")
-    run(config_path)
-
-def draw_window(win, birds, pipes, base, score, generation):
+def draw_window(win, birds, worms, pipes, base, score, generation):
     win.blit(BG_IMG, (0,0))
     
     for pipe in pipes:
@@ -196,6 +219,9 @@ def draw_window(win, birds, pipes, base, score, generation):
 
     for bird in birds:
         bird.draw(win)
+
+    for worm in worms:
+        worm.draw(win)
 
     pygame.display.update()
 
@@ -215,6 +241,7 @@ def main(genomes, config):
         ge.append(genome)
 
     base = Base(730)
+    worms = []
     pipes = [Pipe(700)]
     win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
     clock = pygame.time.Clock()
@@ -240,27 +267,32 @@ def main(genomes, config):
         else:   # if no birds left, quit the game
             run = False
             break
-
+        
+        # birds gain fitness for moving forward, and at every frame, check if it should jump
         for i, bird in enumerate(birds):
             bird.move()
-            ge[i].fitness += 0.01
+            ge[i].fitness += 0.1
 
             output = nets[i].activate((bird.y, abs(bird.y - pipes[pipe_index].height), abs(bird.y - pipes[pipe_index].bottom)))
 
-            if output[0] > 0.5:
+            if output[0] > 0.7:
                 bird.jump()
+
+        for worm in worms:
+            worm.move()
 
         add_pipe = False
         removed_pipes = []
+        removed_worms = []
 
+        # checks if birds collide with pipes
         for pipe in pipes:
             for i, bird in enumerate(birds):
                 if pipe.collide(bird):
-                    ge[i].fitness -= 0.5
+                    ge[i].fitness -= 3
                     birds.pop(i)
                     nets.pop(i)
                     ge.pop(i)
-
 
                 if not pipe.passed and pipe.x < bird.x:
                     pipe.passed = True
@@ -272,14 +304,25 @@ def main(genomes, config):
 
             pipe.move()
 
+        # if birds successfully passes through the pipes, spawn a worm
         if add_pipe:
             score += 1
-
+            worms.append(Worm(450, random.randrange(50, 450)))
             # increases fitness for birds that pass through a pipe
             for genome in ge:
-                genome.fitness += 2
+                genome.fitness += 4
 
             pipes.append(Pipe(600)) # adjusts how close the new pipe is created
+
+        # if birds passes/collides with the worms, gain fitness
+        for worm in worms:
+            for i, bird in enumerate(birds):
+                if worm.add_bonus(bird):
+                    ge[i].fitness += 2
+                    removed_worms.append(worm)
+
+        for worm in removed_worms:
+            worms.remove(worm)
 
         for pipe in removed_pipes:
             pipes.remove(pipe)
@@ -292,4 +335,9 @@ def main(genomes, config):
                 ge.pop(i)
 
         base.move()
-        draw_window(win, birds, pipes, base, score, GENERATION)
+        draw_window(win, birds, worms, pipes, base, score, GENERATION)
+
+if __name__ == "__main__":
+    local_dir = os.path.dirname(__file__)
+    config_path = os.path.join(local_dir + "\\config-feedforward.txt")
+    run(config_path)
