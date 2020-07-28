@@ -3,7 +3,7 @@
 ## Preface
 This mini-project serves as a fun introduction to artificial intelligence (AI) for me, and mainly uses Python and its NEAT module. Using AI to evolve fLoPpY bUrT to **FLAPPY BIRD**!
 
-<p align="center"><img src="flappy.gif" /></p>
+<p align="center"><img src="imgs/flappy.gif" /></p>
 
 ## Fitness Function
 

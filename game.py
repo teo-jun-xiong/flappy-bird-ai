@@ -158,7 +158,6 @@ class Worm:
         point = bird_mask.overlap(worms_mask, offset)
 
         if point:   # not NaN
-            print("cOLLIDEd")
             return True
         
         return False
@@ -319,6 +318,7 @@ def main(genomes, config):
             for i, bird in enumerate(birds):
                 if worm.add_bonus(bird):
                     ge[i].fitness += 2
+                    score += 2
                     removed_worms.append(worm)
 
         for worm in removed_worms:
